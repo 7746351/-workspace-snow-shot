@@ -79,28 +79,6 @@ jobs:
           "Qt6_DIR=D:\Qt\6.12.0\msvc2022_64\lib\cmake\Qt6" >> $env:GITHUB_ENV
           "D:\Qt\6.12.0\msvc2022_64\bin" >> $env:GITHUB_PATH
 
-      - name: Diagnose Qt 6.12.0 kit
-        shell: pwsh
-        run: |
-          $q = 'D:\Qt\6.12.0\msvc2022_64\lib\cmake\Qt6'
-          foreach ($path in @(
-              "$q\Qt6Config.cmake",
-              "$q\..\Qt6Core\Qt6CoreTargets-release.cmake",
-              "$q\..\Qt6Core\Qt6CoreTargets.cmake",
-              "$q\..\Qt6Concurrent\Qt6ConcurrentConfig.cmake",
-              "$q\..\Qt6Test\Qt6TestConfig.cmake",
-              'D:\Qt\6.12.0\msvc2022_64\bin\Qt6Core.dll')) {
-            Write-Host "$path = $(Test-Path -LiteralPath $path)"
-          }
-          Select-String -Path "$q\..\Qt6Core\Qt6CoreTargets.cmake" `
-            -Pattern 'QT_(ENABLED|DISABLED)_(PUBLIC|PRIVATE)_FEATURES' |
-            Select-Object -First 6 | ForEach-Object { Write-Host $_.Line }
-          Get-ChildItem "$q\..\Qt6Core" | Select-Object -ExpandProperty Name
-          . ./scripts/snow-build-environment.ps1
-          Write-Host "version=$(Get-SnowQtKitVersion -Qt6Dir $q)"
-          Write-Host "development=$(Test-SnowQtDevelopmentModules -Qt6Dir $q)"
-          Write-Host "architecture=$(Test-SnowQtArchitecture -Qt6Dir $q -Architecture x64 -Configuration Release)"
-
       - name: Cache vcpkg and dependencies
         uses: actions/cache@v4
         with:
@@ -123,7 +101,8 @@ jobs:
             -DSNOW_APPS_BUILD_TESTS=OFF `
             -DSNOW_APPS_BUILD_BENCHMARKS=OFF `
             -DSNOW_APPS_BUILD_IMAGE_VIEWER=OFF `
-            -DSNOW_APPS_BUILD_DRAW_ENGINE_DEMO=OFF
+            -DSNOW_APPS_BUILD_DRAW_ENGINE_DEMO=OFF `
+            -DCMAKE_MAP_IMPORTED_CONFIG_RELEASE=RELWITHDEBINFO
 
       - name: Build Snow Shot Offline
         shell: pwsh

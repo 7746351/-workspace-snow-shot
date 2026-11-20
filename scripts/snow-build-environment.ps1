@@ -471,7 +471,14 @@ function Resolve-SnowQtDir {
             $configurationTargets = Join-Path $resolved (
                 "..\Qt6Core\Qt6CoreTargets-{0}.cmake" -f $requiredConfiguration.ToLowerInvariant()
             )
-            if (-not (Test-Path -LiteralPath $configurationTargets -PathType Leaf)) { continue }
+            if (-not (Test-Path -LiteralPath $configurationTargets -PathType Leaf)) {
+                # Qt 6.12 ships optimized binaries built as RelWithDebInfo.
+                $relWithDebInfoTargets = Join-Path $resolved "..\Qt6Core\Qt6CoreTargets-relwithdebinfo.cmake"
+                if ($requiredConfiguration -cne "Release" -or
+                    -not (Test-Path -LiteralPath $relWithDebInfoTargets -PathType Leaf)) {
+                    continue
+                }
+            }
         }
         if ($Preset -match '-performance$' -and
             -not (Test-SnowQtDevelopmentModules -Qt6Dir $resolved)) {
