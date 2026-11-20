@@ -11060,7 +11060,9 @@ target_link_libraries(
 target_compile_definitions(snow_shot PRIVATE
     $<$<CONFIG:Release>:QT_NO_DEBUG_OUTPUT>
 )
-add_dependencies(snow_shot snow_ocr_process)
+if(NOT SNOW_SHOT_OFFLINE)
+    add_dependencies(snow_shot snow_ocr_process)
+endif()
 if(SNOW_SHOT_ENABLE_MCP)
     add_dependencies(snow_shot snow_shot_mcp)
     add_custom_command(TARGET snow_shot POST_BUILD
@@ -11412,7 +11414,7 @@ snow_shot_add_translations(snow_shot)
 include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/SnowShotUpdateUiTests.cmake")
 
 foreach(_ocr_process_host_target IN ITEMS snow_shot snow-shot-ocr-recognition-service-tests)
-    if(TARGET ${_ocr_process_host_target})
+    if(NOT SNOW_SHOT_OFFLINE AND TARGET ${_ocr_process_host_target})
         add_dependencies(${_ocr_process_host_target} snow_ocr_process)
         add_custom_command(TARGET ${_ocr_process_host_target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different
@@ -11737,9 +11739,11 @@ install(TARGETS snow_shot
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-install(PROGRAMS "$<TARGET_FILE:snow_ocr_process>"
-    DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+if(NOT SNOW_SHOT_OFFLINE)
+    install(PROGRAMS "$<TARGET_FILE:snow_ocr_process>"
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif()
 if(SNOW_SHOT_ENABLE_MCP)
     install(PROGRAMS "$<TARGET_FILE:snow_shot_mcp>"
         DESTINATION ${CMAKE_INSTALL_BINDIR}
