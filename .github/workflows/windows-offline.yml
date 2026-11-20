@@ -29,12 +29,55 @@ jobs:
           targets: x86_64-pc-windows-msvc
           components: rustfmt, clippy
 
-      - name: Install Qt 6.12.0
-        uses: jurplel/install-qt-action@v4
+      - name: Cache Qt 6.12.0
+        id: qt-cache
+        uses: actions/cache@v4
         with:
-          version: '6.12.0'
-          arch: win64_msvc2022_64
-          cache: true
+          path: D:\Qt\6.12.0\msvc2022_64
+          key: qt-6.12.0-msvc2022_64-v1
+
+      - name: Provision Qt 6.12.0
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = 'https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6120/qt6_6120_msvc2022_64'
+          $xmlPath = Join-Path $env:RUNNER_TEMP 'qt-updates.xml'
+          curl.exe -sSL --retry 3 --retry-delay 5 -o $xmlPath "$repo/Updates.xml"
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to download Qt metadata.' }
+          [xml]$xml = Get-Content -LiteralPath $xmlPath
+          $target = 'D:\Qt\6.12.0\msvc2022_64'
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          $packages = @(
+            'qt.qt6.6120.win64_msvc2022_64',
+            'qt.qt6.6120.addons.qt5compat.win64_msvc2022_64'
+          )
+          foreach ($name in $packages) {
+            $package = $xml.Updates.PackageUpdate | Where-Object { $_.Name -eq $name }
+            if (-not $package) { throw "Qt package $name not found in repository metadata." }
+            foreach ($archive in ($package.DownloadableArchives -split ',')) {
+              $archive = $archive.Trim()
+              if (-not $archive) { continue }
+              $url = "$repo/$name/$($package.Version)$archive"
+              $destination = Join-Path $env:RUNNER_TEMP $archive
+              Write-Host "Downloading $archive"
+              curl.exe -sSL --retry 3 --retry-delay 5 -o $destination $url
+              if ($LASTEXITCODE -ne 0) { throw "Failed to download $url" }
+              $extractRoot = $target
+              if ($archive -like 'd3dcompiler*' -or $archive -like 'opengl32sw*') {
+                $extractRoot = Join-Path $target 'bin'
+              }
+              & 7z x -y "-o$extractRoot" $destination | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw "Failed to extract $archive" }
+            }
+          }
+
+      - name: Select Qt 6.12.0
+        shell: pwsh
+        run: |
+          "QTDIR=D:\Qt\6.12.0\msvc2022_64" >> $env:GITHUB_ENV
+          "Qt6_DIR=D:\Qt\6.12.0\msvc2022_64\lib\cmake\Qt6" >> $env:GITHUB_ENV
+          "D:\Qt\6.12.0\msvc2022_64\bin" >> $env:GITHUB_PATH
 
       - name: Cache vcpkg and dependencies
         uses: actions/cache@v4
