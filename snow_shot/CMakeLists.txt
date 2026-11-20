@@ -430,7 +430,7 @@ if(SNOW_SHOT_ENABLE_MCP)
     )
 endif()
 
-if(WIN32 OR APPLE)
+if((WIN32 OR APPLE) AND NOT SNOW_SHOT_OFFLINE)
     add_dependencies(snow_ocr_process_build snow_ocr_diagnostics_bridge)
 endif()
 
