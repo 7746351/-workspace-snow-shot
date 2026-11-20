@@ -84,6 +84,7 @@ jobs:
         with:
           path: |
             .tools/vcpkg
+            .vcpkg-cache
             build/windows-msvc-performance
           key: snow-offline-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}
           restore-keys: |
@@ -91,7 +92,20 @@ jobs:
 
       - name: Bootstrap vcpkg dependencies
         shell: pwsh
-        run: ./scripts/bootstrap.ps1 -Preset windows-msvc-performance -VcpkgVariants Dynamic
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:VCPKG_BINARY_SOURCES = "clear;files,$PWD\.vcpkg-cache,readwrite"
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+              & ./scripts/bootstrap.ps1 -Preset windows-msvc-performance -VcpkgVariants Dynamic
+              if ($LASTEXITCODE -eq 0) { exit 0 }
+              throw "bootstrap exited with $LASTEXITCODE"
+            } catch {
+              Write-Warning "Bootstrap attempt $attempt failed: $_"
+              if ($attempt -eq 3) { throw }
+              Start-Sleep -Seconds 20
+            }
+          }
 
       - name: Configure offline Mini
         shell: pwsh
