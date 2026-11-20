@@ -90,20 +90,46 @@ jobs:
           restore-keys: |
             snow-offline-${{ runner.os }}-
 
-      - name: Bootstrap vcpkg dependencies
+      - name: Prepare vcpkg tool
+        shell: pwsh
+        run: ./scripts/bootstrap.ps1 -Preset windows-msvc-performance -SkipVcpkgInstall
+
+      - name: Seed OpenCV patch download
+        shell: pwsh
+        run: |
+          $downloads = Join-Path $PWD '.tools/vcpkg/downloads'
+          New-Item -ItemType Directory -Force -Path $downloads | Out-Null
+          $name = '468de9b36740b3355f0d5cd8be2ce28b340df120.patch'
+          $expected = '09ee552fcd9a96359230104d7bf8610a63e05d743a3b51d58c6469331729a6440444e05c616464380dbebaefdd7ee6fb06cac5fc70694af85f9c8d40201aad10'
+          $destination = Join-Path $downloads "$expected-$name"
+          if (-not (Test-Path -LiteralPath $destination)) {
+            $url = "https://github.com/opencv/opencv/commit/$name?full_index=1"
+            curl.exe -sSL --retry 10 --retry-all-errors --retry-delay 10 -o $destination $url
+            if ($LASTEXITCODE -ne 0 -or
+                -not (Test-Path -LiteralPath $destination) -or
+                (Get-FileHash -Algorithm SHA512 -LiteralPath $destination).Hash.ToLower() -ne $expected) {
+              Remove-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+              Write-Warning 'Unable to seed the OpenCV patch; vcpkg will download it.'
+            }
+          }
+
+      - name: Bootstrap vcpkg dependency
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $env:VCPKG_BINARY_SOURCES = "clear;files,$PWD\.vcpkg-cache,readwrite"
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
+          $delays = @(15, 30, 60, 120, 240)
+          for ($attempt = 1; $attempt -le $delays.Count + 1; $attempt++) {
             try {
               & ./scripts/bootstrap.ps1 -Preset windows-msvc-performance -VcpkgVariants Dynamic
               if ($LASTEXITCODE -eq 0) { exit 0 }
               throw "bootstrap exited with $LASTEXITCODE"
             } catch {
               Write-Warning "Bootstrap attempt $attempt failed: $_"
-              if ($attempt -eq 3) { throw }
-              Start-Sleep -Seconds 20
+              if ($attempt -gt $delays.Count) { throw }
+              $seconds = $delays[$attempt - 1]
+              Write-Host "Retrying in $seconds seconds."
+              Start-Sleep -Seconds $seconds
             }
           }
 
