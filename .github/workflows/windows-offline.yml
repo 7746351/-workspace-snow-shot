@@ -92,7 +92,7 @@ jobs:
 
       - name: Prepare vcpkg tool
         shell: pwsh
-        run: ./scripts/bootstrap.ps1 -Preset windows-msvc-performance -SkipVcpkgInstall
+        run: ./scripts/bootstrap.ps1 -Preset windows-msvc-performance -SkipDependencyInstall
 
       - name: Seed OpenCV patch download
         shell: pwsh
