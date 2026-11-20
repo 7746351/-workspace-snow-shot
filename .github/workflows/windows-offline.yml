@@ -79,6 +79,18 @@ jobs:
           "Qt6_DIR=D:\Qt\6.12.0\msvc2022_64\lib\cmake\Qt6" >> $env:GITHUB_ENV
           "D:\Qt\6.12.0\msvc2022_64\bin" >> $env:GITHUB_PATH
 
+      - name: Add Qt 6.12 Release import configs
+        shell: pwsh
+        run: |
+          $root = 'D:\Qt\6.12.0\msvc2022_64\lib\cmake'
+          Get-ChildItem -Path $root -Recurse -Filter '*Targets-relwithdebinfo.cmake' |
+            ForEach-Object {
+              $content = Get-Content -LiteralPath $_.FullName -Raw
+              $content = $content -replace 'RelWithDebInfo', 'Release' -replace 'RELWITHDEBINFO', 'RELEASE'
+              $releasePath = $_.FullName -replace '-relwithdebinfo\.cmake$', '-release.cmake'
+              Set-Content -LiteralPath $releasePath -Value $content -NoNewline
+            }
+
       - name: Cache vcpkg and dependencies
         uses: actions/cache@v4
         with:
@@ -133,6 +145,14 @@ jobs:
             }
           }
 
+      - name: Save vcpkg dependency cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .tools/vcpkg
+            .vcpkg-cache
+          key: snow-offline-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-${{ github.run_id }}
+
       - name: Configure offline Mini
         shell: pwsh
         run: |
@@ -141,8 +161,7 @@ jobs:
             -DSNOW_APPS_BUILD_TESTS=OFF `
             -DSNOW_APPS_BUILD_BENCHMARKS=OFF `
             -DSNOW_APPS_BUILD_IMAGE_VIEWER=OFF `
-            -DSNOW_APPS_BUILD_DRAW_ENGINE_DEMO=OFF `
-            -DCMAKE_MAP_IMPORTED_CONFIG_RELEASE=RELWITHDEBINFO
+            -DSNOW_APPS_BUILD_DRAW_ENGINE_DEMO=OFF
 
       - name: Build Snow Shot Offline
         shell: pwsh
