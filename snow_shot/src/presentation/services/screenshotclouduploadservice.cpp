@@ -1,4 +1,5 @@
 #include "snow_shot/presentation/screenshotclouduploadservice.h"
+#include "snow_shot/app/edition.h"
 #include "snow_shot/runtime/runtimeactivitytracker.h"
 #include "snow_shot/network/s3uploadprotocol.h"
 #include "snow_shot/presentation/screenshotencodingsettings.h"
@@ -279,7 +280,7 @@ ScreenshotCloudUploadService::upload(std::shared_ptr<ScreenshotExportArtifact> a
                                      snow_shot::CloudUploadConfiguration config,
                                      ScreenshotCloudUploadOptions options, QObject* receiver,
                                      Completion completion, bool cancelSourceOnAbort) {
-    if (!receiver)
+    if (!receiver || snow_shot::app::edition::offline)
         return nullptr;
     auto* job = new ScreenshotCloudUploadJob(std::move(artifact), std::move(config),
                                              std::move(options), receiver);
@@ -291,7 +292,7 @@ ScreenshotCloudUploadService::upload(std::shared_ptr<ScreenshotExportArtifact> a
 ScreenshotCloudUploadJob* ScreenshotCloudUploadService::uploadEncoded(
     ScreenshotEncodedExport file, snow_shot::CloudUploadConfiguration config,
     ScreenshotCloudUploadOptions options, QObject* receiver) {
-    if (!receiver || !file.available())
+    if (!receiver || !file.available() || snow_shot::app::edition::offline)
         return nullptr;
     options.format = file.format;
     auto* job = new ScreenshotCloudUploadJob({}, std::move(config), std::move(options), receiver);
