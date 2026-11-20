@@ -95,6 +95,7 @@ jobs:
           Select-String -Path "$q\..\Qt6Core\Qt6CoreTargets.cmake" `
             -Pattern 'QT_(ENABLED|DISABLED)_(PUBLIC|PRIVATE)_FEATURES' |
             Select-Object -First 6 | ForEach-Object { Write-Host $_.Line }
+          Get-ChildItem "$q\..\Qt6Core" | Select-Object -ExpandProperty Name
           . ./scripts/snow-build-environment.ps1
           Write-Host "version=$(Get-SnowQtKitVersion -Qt6Dir $q)"
           Write-Host "development=$(Test-SnowQtDevelopmentModules -Qt6Dir $q)"
