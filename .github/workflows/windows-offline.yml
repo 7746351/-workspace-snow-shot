@@ -1,0 +1,90 @@
+name: Windows Offline Build
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 360
+    env:
+      SNOW_SHOT_OFFLINE: 'ON'
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: Install Rust 1.97.1
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.97.1
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+
+      - name: Install Qt 6.12.0
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.12.0'
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Cache vcpkg and dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/vcpkg
+            build/windows-msvc-performance
+          key: snow-offline-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}
+          restore-keys: |
+            snow-offline-${{ runner.os }}-
+
+      - name: Bootstrap vcpkg dependencies
+        shell: pwsh
+        run: ./scripts/bootstrap.ps1 -Preset windows-msvc-performance -VcpkgVariants Dynamic
+
+      - name: Configure offline Mini
+        shell: pwsh
+        run: |
+          cmake --preset windows-msvc-performance `
+            -DSNOW_SHOT_OFFLINE=ON `
+            -DSNOW_APPS_BUILD_TESTS=OFF `
+            -DSNOW_APPS_BUILD_BENCHMARKS=OFF `
+            -DSNOW_APPS_BUILD_IMAGE_VIEWER=OFF `
+            -DSNOW_APPS_BUILD_DRAW_ENGINE_DEMO=OFF
+
+      - name: Build Snow Shot Offline
+        shell: pwsh
+        run: |
+          cmake --build build/windows-msvc-performance --config Release `
+            --target snow_shot_mini --parallel
+
+      - name: Stage portable package
+        shell: pwsh
+        run: |
+          $stage = Join-Path $PWD 'artifacts/snow-shot-offline'
+          $install = Join-Path $stage 'stage'
+          if (Test-Path $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+          New-Item -ItemType Directory -Path $install -Force | Out-Null
+          cmake --install build/windows-msvc-performance --config Release `
+            --component SnowShotMini --prefix $install
+          if ($LASTEXITCODE -ne 0) { throw 'Install failed.' }
+          New-Item -ItemType File -Path (Join-Path $install 'bin/__mini_data_directory') -Force | Out-Null
+          $package = Join-Path $stage 'SnowShotOffline'
+          New-Item -ItemType Directory -Path $package -Force | Out-Null
+          Copy-Item -Path (Join-Path $install '*') -Destination $package -Recurse -Force
+          Compress-Archive -Path $package -DestinationPath (Join-Path $stage 'snow-shot-offline-windows-x64.zip') -Force
+
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: snow-shot-offline-windows-x64
+          path: artifacts/snow-shot-offline/snow-shot-offline-windows-x64.zip
+          if-no-files-found: error
