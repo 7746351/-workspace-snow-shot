@@ -601,7 +601,7 @@ bool downloadOnce(QNetworkAccessManager* manager, const FileDescriptor& descript
                   const QString& destination, const Progress& progress, QString* error,
                   bool* transient) {
     *transient = false;
-    if (app::edition::offline) {
+    if (snow_shot::app::edition::offline) {
         if (error != nullptr)
             *error = QStringLiteral("text recognition is unavailable in this offline build");
         return false;
