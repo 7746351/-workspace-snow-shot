@@ -27,8 +27,10 @@ set(_snow_escape [=[
             VCPKG_COMBINED_C_FLAGS_RELEASE VCPKG_COMBINED_CXX_FLAGS_RELEASE
             VCPKG_COMBINED_SHARED_LINKER_FLAGS_DEBUG VCPKG_COMBINED_SHARED_LINKER_FLAGS_RELEASE
             VCPKG_COMBINED_STATIC_LINKER_FLAGS_DEBUG VCPKG_COMBINED_STATIC_LINKER_FLAGS_RELEASE)
-        string(REPLACE "-MD" "-MT" ${_snow_flags} "${${_snow_flags}}")
-        string(REPLACE "/MD" "/MT" ${_snow_flags} "${${_snow_flags}}")
+        if(VCPKG_CRT_LINKAGE STREQUAL "static")
+            string(REPLACE "-MD" "-MT" ${_snow_flags} "${${_snow_flags}}")
+            string(REPLACE "/MD" "/MT" ${_snow_flags} "${${_snow_flags}}")
+        endif()
         string(REGEX REPLACE "[-/]GL([ ;]|$)" "/GL-\\1" ${_snow_flags} "${${_snow_flags}}")
         string(REPLACE "\\" "\\\\" ${_snow_flags} "${${_snow_flags}}")
         string(REPLACE "\"" "\\\"" ${_snow_flags} "${${_snow_flags}}")
