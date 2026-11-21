@@ -173,22 +173,6 @@ else()
 endif()
 install(TARGETS snow_shot_mini BUNDLE DESTINATION . COMPONENT SnowShotMini
     RUNTIME DESTINATION "${_mini_bindir}" COMPONENT SnowShotMini)
-if(WIN32 AND NOT SNOW_SHOT_QT_STATIC)
-    qt_generate_deploy_app_script(
-        TARGET snow_shot_mini
-        OUTPUT_SCRIPT SNOW_SHOT_MINI_QT_DEPLOY_SCRIPT
-        NO_UNSUPPORTED_PLATFORM_ERROR
-        EXCLUDE_PLUGIN_TYPES
-            generic
-            iconengines
-            imageformats
-            networkinformation
-            styles
-        EXCLUDE_PLUGINS
-            qcertonlybackend
-    )
-    install(SCRIPT "${SNOW_SHOT_MINI_QT_DEPLOY_SCRIPT}" COMPONENT SnowShotMini)
-endif()
 foreach(_helper IN ITEMS snow-shot-mini-updater-binary snow_shot_mini_mcp)
     if(TARGET ${_helper})
         if(_helper STREQUAL snow_shot_mini_mcp)

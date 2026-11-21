@@ -169,6 +169,29 @@ jobs:
           cmake --build build/windows-msvc-performance --config Release `
             --target snow_shot_mini --parallel
 
+      - name: Collect third-party licenses
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $build = Join-Path $PWD 'build/windows-msvc-performance'
+          $qtRoot = 'D:\Qt\6.12.0\msvc2022_64'
+          $qtAudit = Join-Path $qtRoot 'share/snow-apps/qt-licenses/qt'
+          $qtLicenses = Join-Path $qtRoot 'LICENSES'
+          if (-not (Test-Path -LiteralPath $qtLicenses)) {
+            throw "The Qt kit has no LICENSES directory: $qtLicenses"
+          }
+          New-Item -ItemType Directory -Force -Path $qtAudit | Out-Null
+          Copy-Item -Path (Join-Path $qtLicenses '*') -Destination $qtAudit -Recurse -Force
+          & ./scripts/collect-third-party-licenses.ps1 `
+            -Destination (Join-Path $build 'snow_shot/third-party-licenses/third-party') `
+            -AllowedRoot $build `
+            -VcpkgPrefix (Join-Path $PWD '.tools/vcpkg/installed/dynamic/x64-windows') `
+            -QtPrefix $qtRoot `
+            -CargoManifest (Join-Path $PWD 'snow_rust_ffi/Cargo.toml') `
+            -AntDesignNotice (Join-Path $PWD 'ant_design_qt/THIRD_PARTY_NOTICES.md') `
+            -FallbackLicenseDirectory (Join-Path $PWD 'licenses')
+          if ($LASTEXITCODE -ne 0) { throw 'License collection failed.' }
+
       - name: Stage portable package
         shell: pwsh
         run: |
