@@ -498,7 +498,9 @@ int main(int argc, char* argv[]) {
 
 #ifndef Q_OS_MACOS
     // macOS updates use a downloaded DMG, not the standalone transaction helper.
-    if (!snow_shot::app::distribution::isStoreManaged()) {
+    // Offline builds ship no updater helper, so there is no transaction state to probe.
+    if (!snow_shot::app::distribution::isStoreManaged() &&
+        !snow_shot::app::edition::offline) {
         QString executablePath = QString::fromLocal8Bit(argv[0]);
 #ifdef Q_OS_WIN
         wchar_t modulePath[32768]{};
@@ -660,6 +662,7 @@ int main(int argc, char* argv[]) {
     snow_shot::presentation::styles::ThemeManager::instance().initialize(app);
 #ifdef Q_OS_WIN
     if (!snow_shot::app::distribution::isStoreManaged() && !updaterRelaunch &&
+        !snow_shot::app::edition::offline &&
         snow_shot::update::startupUpdateMayDelayLaunch(launchArguments) &&
         applicationStorage.configuration().value(QStringLiteral("updates/mode")).toString() ==
             u"next_launch") {
