@@ -176,12 +176,25 @@ jobs:
           $build = Join-Path $PWD 'build/windows-msvc-performance'
           $qtRoot = 'D:\Qt\6.12.0\msvc2022_64'
           $qtAudit = Join-Path $qtRoot 'share/snow-apps/qt-licenses/qt'
-          $qtLicenses = Join-Path $qtRoot 'LICENSES'
-          if (-not (Test-Path -LiteralPath $qtLicenses)) {
-            throw "The Qt kit has no LICENSES directory: $qtLicenses"
-          }
           New-Item -ItemType Directory -Force -Path $qtAudit | Out-Null
-          Copy-Item -Path (Join-Path $qtLicenses '*') -Destination $qtAudit -Recurse -Force
+          $qtLicenseSource = Get-ChildItem -LiteralPath $qtRoot -Directory -Recurse -Depth 2 `
+            -Filter 'LICENSES' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($qtLicenseSource) {
+            Copy-Item -Path (Join-Path $qtLicenseSource.FullName '*') -Destination $qtAudit `
+              -Recurse -Force
+          } else {
+            $licenseUrls = @{
+              'LGPL-3.0-only.txt' = 'https://code.qt.io/cgit/qt/qtbase.git/plain/LICENSES/LGPL-3.0-only.txt'
+              'GPL-3.0-only.txt' = 'https://code.qt.io/cgit/qt/qtbase.git/plain/LICENSES/GPL-3.0-only.txt'
+            }
+            foreach ($name in $licenseUrls.Keys) {
+              $destination = Join-Path $qtAudit $name
+              curl.exe -sSL --retry 5 --retry-all-errors --retry-delay 3 -o $destination $licenseUrls[$name]
+              if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $destination)) {
+                throw "Failed to download the Qt license text: $name"
+              }
+            }
+          }
           & ./scripts/collect-third-party-licenses.ps1 `
             -Destination (Join-Path $build 'snow_shot/third-party-licenses/third-party') `
             -AllowedRoot $build `
