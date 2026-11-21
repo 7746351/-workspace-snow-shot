@@ -215,6 +215,29 @@ jobs:
           cmake --install build/windows-msvc-performance --config Release `
             --component SnowShotMini --prefix $install
           if ($LASTEXITCODE -ne 0) { throw 'Install failed.' }
+          # Deploy the MSVC runtime app-locally so the package starts on machines
+          # without the Visual C++ redistributable installed.
+          $crtNames = @('concrt140.dll', 'msvcp140.dll', 'msvcp140_1.dll', 'msvcp140_2.dll',
+            'msvcp140_atomic_wait.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vsRoot = & $vswhere -latest -products * -property installationPath
+          if (-not $vsRoot) { throw 'Visual Studio installation not found.' }
+          $crtFiles = @(Get-ChildItem -Path (Join-Path $vsRoot 'VC\Redist\MSVC') -Recurse -File `
+            -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\x64\\Microsoft\.VC[^\\]*\.CRT\\' })
+          foreach ($name in $crtNames) {
+            $crt = $crtFiles | Where-Object { $_.Name.ToLower() -eq $name } |
+              Sort-Object FullName -Descending | Select-Object -First 1
+            if (-not $crt) { throw "MSVC runtime redistributable not found: $name" }
+            Copy-Item -LiteralPath $crt.FullName -Destination (Join-Path $install 'bin') -Force
+          }
+          foreach ($required in @('bin/snow_shot_mini.exe', 'bin/Qt6Core.dll', 'bin/Qt6Gui.dll',
+              'bin/vcruntime140.dll', 'bin/msvcp140.dll', 'bin/concrt140.dll',
+              'plugins/platforms/qwindows.dll')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $install $required))) {
+              throw "The portable package is missing $required"
+            }
+          }
           New-Item -ItemType File -Path (Join-Path $install 'bin/__mini_data_directory') -Force | Out-Null
           $package = Join-Path $stage 'SnowShotOffline'
           New-Item -ItemType Directory -Path $package -Force | Out-Null
