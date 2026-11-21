@@ -29,6 +29,8 @@ function(snow_shot_fetch_qr_models out_var)
             "${_base_url}/${_name}"
             "${_destination}/${_name}"
             EXPECTED_HASH "SHA512=${_sha512}"
+            RETRY 10
+            TIMEOUT 180
             STATUS _status)
         list(GET _status 0 _status_code)
         if(NOT _status_code EQUAL 0)

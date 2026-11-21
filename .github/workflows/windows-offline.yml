@@ -153,6 +153,12 @@ jobs:
             .vcpkg-cache
           key: snow-offline-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'cmake/vcpkg-overlay-ports/**', 'cmake/vcpkg-overlay-triplets/**') }}-${{ github.run_id }}
 
+      - name: Cache WeChat QR models
+        uses: actions/cache@v4
+        with:
+          path: artifacts/qr-models-wechat
+          key: snow-offline-qr-models-${{ hashFiles('cmake/FetchSnowShotQrModels.cmake') }}
+
       - name: Configure offline Mini
         shell: pwsh
         run: |
